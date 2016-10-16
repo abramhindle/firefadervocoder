@@ -60,4 +60,5 @@ x = Synth(\firefaderout,[\in1,~ffloca,\in2,~fflocb,\out1,~ffrealloca,\out2,~ffre
 		0.01.wait;
 	};
 }).play;
+//~firefaderroutine.stop
 

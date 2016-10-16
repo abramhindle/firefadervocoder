@@ -51,7 +51,7 @@ s.waitForBoot {
 // Dumb routine does the wrong thing, reads values and sets them
 ~myfreqs = 4.collect{ Buffer.alloc(s,~nfreqs); };
 4.do {|j|	
-	var v = 200.0.rand;
+	var v = 144.0.rand;
 	16.do { |i|
     	~myfreqs[j].set(i,i*v);
 	};
@@ -59,9 +59,9 @@ s.waitForBoot {
 ~myfreqs[3].get(10,{|x| x.postln});
 
 ~eps = 0.00001;
-~closeenv = Env([1, 0, 1,0,1,0,1,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps]);
+~closeenv = Env([1, 0, 1,0,1,0,1,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
 ~closeenv.plot;
-~ampenv = Env([3.0, 0.1, 3.0,0.1,3.0,0.1,3.0,0.1], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
+~ampenv = Env([3.0, 0.4,3.0,0.4,3.0,0.4,3.0,0.4], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
 ~ampenv.plot;
 ~freqenv = [
 	Env([1.0, 1.0,0.0,0.0], [0.25-~eps,~eps,0.75]),
@@ -102,7 +102,32 @@ s.waitForBoot {
 ~myfreqs[3].set(12,6000);
 ~myfreqs[3].set(13,481);
 ~myfreqs[3].set(14,1750);
+s.freqscope;
 
+~freq3rot = Routine({
+	loop {
+		~myfreqs[3].set(16.rand,500.linrand);
+		2.0.rand.wait;
+	};
+}).play;
+
+
+~myfreqs[2].set(0,40);
+~myfreqs[2].set(1,44);
+~myfreqs[2].set(2,48);
+~myfreqs[2].set(3,52);
+~myfreqs[2].set(4,56);
+~myfreqs[2].set(5,80);
+~myfreqs[2].set(6,84);
+~myfreqs[2].set(7,88);
+~myfreqs[2].set(8,92);
+~myfreqs[2].set(9,96);
+~myfreqs[2].set(6,100);
+~myfreqs[2].set(15,60);
+~myfreqs[2].set(11,64);
+~myfreqs[2].set(12,68);
+~myfreqs[2].set(13,72);
+~myfreqs[2].set(14,76);
 
 
 

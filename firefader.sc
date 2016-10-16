@@ -55,9 +55,9 @@ x = Synth(\firefaderout,[\in1,~ffloca,\in2,~fflocb,\out1,~ffrealloca,\out2,~ffre
 		~ffrealloca.get({|x|
 			var force = ~fourband.at(x*10.0);
 			~sendforces.(~firefaderport,force,0.0,1.8);
-			~readFader.(~firefaderport).postln;
+			~readFader.(~firefaderport);
 		});
-		0.001.wait;
+		0.01.wait;
 	};
 }).play;
 

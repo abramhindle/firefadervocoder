@@ -1,14 +1,16 @@
 //s.boot;
+//s.freeAll;
 ~nfreqs=16;
 s.waitForBoot {
-    var fftsize = 4096*4;
+    var fftsize = 4096;
     var buf = { Buffer.alloc(s, fftsize) }.dup;
     var hop = 1/2;
     var nfreqs = ~nfreqs;
-    ~freqs = Buffer.alloc(s,nfreqs);
+    ~freqs1 = Buffer.alloc(s,nfreqs);
+    ~freqs2 = Buffer.alloc(s,nfreqs);
+
     PyOnce("
         pv = PhaseVocoder(hop)
-        
         def smushit(freqs,fb,b):
             a = freqs
             ass = fb            
@@ -18,8 +20,7 @@ s.waitForBoot {
             v = (ass - bs)*closeness
             vs = np.abs(v)
             newb = b + v[np.arange(v.shape[0]),np.argmin(vs,axis=1)]
-            return newb
-        
+            return newb        
         def fn(x,freqs):
             x = pv.forward(x)
             idx = indices(x.shape)[1]
@@ -29,48 +30,114 @@ s.waitForBoot {
             x = pv.backward(x)
             return x
     ", (hop:hop,fftsize:fftsize));
-
     //s.freeAll;
-    ~synth = {
-	    arg amp=0.0,closeness=0.5;
-        var in = AudioIn.ar([1]);
+	SynthDef(\smush,{
+	    arg ain=1,out=0,amp=0.5,closeness=0.5,freqs;
+        var in = AudioIn.ar(ain);
         var x = FFT(buf.collect(_.bufnum), in, hop);
         Py("
             out(x, fn(array(x), array(freqs)))
-        ", (x:x, closeness:closeness, freqs:~freqs));
-        Out.ar(0, amp*(0.5+(1.5*closeness))*IFFT(x));
-    }.play(s);
+        ", (x:x, closeness:closeness, freqs:freqs));
+        Out.ar(out, amp*(0.5+(0.5*closeness))*IFFT(x));
+    }).load(s);
+	s.sync;
+	~closeness1 = Bus.control(s,1);
+	~closeness1.set(0.99);
+	~closeness2 = Bus.control(s,1);
+	~closeness2.set(0.99);
+	s.sync;
+	~synth1 = Synth(\smush,[\ain,1,\out,0,\amp,0.0,\closeness,~closeness1,\freqs,~freqs1]);
+	s.sync;
+	~synth2 = Synth(\smush,[\ain,2,\out,1,\amp,0.0,\closeness,~closeness2,\freqs,~freqs2]);
+	s.sync;
+	~synth2.set(\amp,0.5);
+	~synth1.set(\amp,0.5);
+	s.sync;
+	~synth1.map(\closeness,~closeness1);
+	~synth2.map(\closeness,~closeness2);
+	s.sync;
+	//~mx={Out.kr(~closeness1,(MouseY.kr + MouseX.kr)/2.0)}.play;
+	//~my={Out.kr(~closeness2,MouseX.kr)}.play;
+	s.sync;
+	[~freqs1,~freqs2].do {|freqs| var v = (20.0+144.0).rand;
+		~nfreqs.do { |i|
+			freqs.set(i,i*~v);
+		};
+	}.play;
+	s.sync;
+	Routine({
+		loop {
+			~closeness1.get({|x| [1,x].postln});		
+			~closeness2.get({|x| [2,x].postln});
+			1.0.wait;
+		};
+	}).play;
+	//~synth1.set(\amp,0.01);
+	//~synth2.set(\amp,0.01);
+	~myfreqs = 4.collect{ Buffer.alloc(s,~nfreqs); };
+	s.sync;
+	4.do {|j|	
+		var v = 144.0.rand;
+		16.do { |i|
+			~myfreqs[j].set(i,i*v);
+		};
+	};
+	~myfreqs[3].get(10,{|x| x.postln});
+	//~myfreqs[3].copyData(~freqs);
+	~eps = 0.00001;
+	~closeenv = Env([1, 0, 1,0,1,0,1,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
+	~ampenv = Env([3.0, 0.4,3.0,0.4,3.0,0.4,3.0,0.4], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
+	~freqenv = Env([0.0, 0.0,1.0,1.0,2.0,2.0,3.0,3.0], [0.25-~eps,~eps,0.25-~eps,~eps,0.25-~eps,~eps]);
+
+	
+	\end.postln;
 };
-~closeness = Bus.control(s,1);
-~closeness.set(0.98);
-~synth.map(\closeness,~closeness);
-~synth.set(\amp,1.5);
+
+
+~mapper = Routine({
+	loop {
+		var f = {|x,synth,closeness,freqs|
+			var i,close,amp,freqs;
+			i = x * 10.0;
+			close = ~closeenv.at(i);
+			amp   = ~ampenv.at(i);
+			ifreqs = ~freqenv.at(i);
+			[x,i,close,amp,ifreqs].postln;
+			synth.set(\amp,amp);
+			closeness.set(close);
+			~myfreqs[ifreqs].copyData(freqs);
+		};
+		~ffrealloca.get({|x|
+			f(x,~synth1,~closeness1,~freqs1);
+		});
+		~ffreallocb.get({|x|
+			f(x,~synth2,~closeness2,~freqs2);
+		});		
+		0.05.wait;
+	};
+}).play;
+
+
+//~synth2.get(\out,{|x| [\out,x].postln});
+//~synth2.get(\ain,{|x| [\ain,x].postln});
+//~synth2.get(\closeness,{|x| [\closeness,x].postln});
+//~closeness2.get({|x| x.postln});
+//~closeness1.get({|x| x.postln});
+//~mx={Out.kr(~closeness1,MouseX.kr)}.play;
+//~my={Out.kr(~closeness2,MouseY.kr)}.play;
 //~synth.set(\closeness,0.9);
 
 //~ffrealloca
 // Dumb routine does the wrong thing, reads values and sets them
-~myfreqs = 4.collect{ Buffer.alloc(s,~nfreqs); };
-4.do {|j|	
-	var v = 144.0.rand;
-	16.do { |i|
-    	~myfreqs[j].set(i,i*v);
-	};
-};
-~myfreqs[3].get(10,{|x| x.postln});
-
-~eps = 0.00001;
-~closeenv = Env([1, 0, 1,0,1,0,1,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
-~closeenv.plot;
-~ampenv = Env([3.0, 0.4,3.0,0.4,3.0,0.4,3.0,0.4], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
-~ampenv.plot;
+ 
+/*
 ~freqenv = [
 	Env([1.0, 1.0,0.0,0.0], [0.25-~eps,~eps,0.75]),
 	Env([0.0, 0.0,1.0,1.0,0.0,0.0], [0.25-~eps,~eps,0.25-~eps,~eps,0.5-~eps]),
 	Env([0.0, 0.0,1.0,1.0,0.0,0.0], [0.5-~eps,~eps,0.25-~eps,~eps,0.25-~eps]),
 	Env([0.0, 0.0,1.0,1.0], [0.75-~eps,~eps,0.25]),
 ];
-
-~freqenv = Env([0.0, 0.0,1.0,1.0,2.0,2.0,3.0,3.0], [0.25-~eps,~eps,0.25-~eps,~eps,0.25-~eps,~eps]);
+*/
 
 
 

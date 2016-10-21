@@ -3,9 +3,9 @@
 // Firefader pd patch and arduino firmware.
 
 ~firefaderport = SerialPort(
-    "/dev/ttyACM0",    // Your serial port!
-    baudrate: 57600,   
-    crtscts: true);
+	"/dev/ttyACM0",    // Your serial port!
+	baudrate: 57600,   
+	crtscts: true);
 
 ~sendforces = {
 	|port,forcea,forceb,scale=1.8|
@@ -31,9 +31,9 @@ SynthDef(\firefaderout,{
 	// 0.00039
 	Out.kr([out1,out2],LPF.kr(0.00039*[input1,input2], freq: freq));
 }).load(s);
-x = Synth(\firefaderout,[\in1,~ffloca,\in2,~fflocb,\out1,~ffrealloca,\out2,~ffrealb]);
-~ffloca.scope;
-~ffrealloca.scope;
+
+//~ffloca.scope;
+//~ffrealloca.scope;
 
 ~readFader = {
 	|port|
@@ -50,15 +50,20 @@ x = Synth(\firefaderout,[\in1,~ffloca,\in2,~fflocb,\out1,~ffrealloca,\out2,~ffre
 ~eps = 0.00001;
 ~fourband = Env([1, -1, 1,-1,1,-1,1,-1], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps]);
 ~firefaderroutine = Routine({
-	loop {
-		//~ffloca.get({|x| x.postln; });
-		~ffrealloca.get({|x|
-			var force = ~fourband.at(x*10.0);
-			~sendforces.(~firefaderport,force,0.0,1.8);
-			~readFader.(~firefaderport);
-		});
-		0.01.wait;
-	};
+		loop {
+			//~ffloca.get({|x| x.postln; });
+			~ffreallocb.get({|y|
+				~ffrealloca.get({|x|
+					var force1 = ~fourband.at(x*10.0);
+					var force2 = ~fourband.at(y*10.0);
+					~sendforces.(~firefaderport,force1,force2,1.8);
+					~readFader.(~firefaderport);
+					
+				});
+			});
+			0.01.wait;
+		};
 }).play;
 //~firefaderroutine.stop
 
+~firefaderoutsynth = Synth(\firefaderout,[\in1,~ffloca,\in2,~fflocb,\out1,~ffrealloca,\out2,~ffrealb]);

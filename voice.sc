@@ -35,7 +35,7 @@ s.waitForBoot {
 	    arg ain=0,out=0,amp=0.5,closeness=0.5,freqs;
         var in = SoundIn.ar([ain]);
         //var x = FFT(buf.collect(_.bufnum), in, hop);
-		var x = FFT(buf.collect(_.bufnum), in, hop);
+		var x = FFT([buf[1].bufnum],in,hop);//buf.collect(_.bufnum), in, hop);
         Py("
             out(x, fn(array(x), array(freqs)))
         ", (x:x, closeness:closeness, freqs:freqs));
@@ -47,7 +47,7 @@ s.waitForBoot {
 	~closeness2 = Bus.control(s,1);
 	~closeness2.set(0.99);
 	s.sync;
-	~synth1 = Synth(\smush,[\ain,0,\out,1,\amp,0.0,\closeness,~closeness1,\freqs,~freqs1]);
+	~synth1 = Synth(\smush,[\ain,0,\out,0,\amp,0.0,\closeness,~closeness1,\freqs,~freqs1]);
 	s.sync;
 	~synth2 = Synth(\smush,[\ain,1,\out,1,\amp,0.0,\closeness,~closeness2,\freqs,~freqs2]);
 	s.sync;
@@ -94,7 +94,6 @@ s.waitForBoot {
 	\end.postln;
 };
 
-_.bufnum
 
 ~mapper = Routine({
 	loop {

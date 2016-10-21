@@ -32,9 +32,10 @@ s.waitForBoot {
     ", (hop:hop,fftsize:fftsize));
     //s.freeAll;
 	SynthDef(\smush,{
-	    arg ain=1,out=0,amp=0.5,closeness=0.5,freqs;
-        var in = AudioIn.ar(ain);
-        var x = FFT(buf.collect(_.bufnum), in, hop);
+	    arg ain=0,out=0,amp=0.5,closeness=0.5,freqs;
+        var in = SoundIn.ar([ain]);
+        //var x = FFT(buf.collect(_.bufnum), in, hop);
+		var x = FFT(buf.collect(_.bufnum), in, hop);
         Py("
             out(x, fn(array(x), array(freqs)))
         ", (x:x, closeness:closeness, freqs:freqs));
@@ -46,12 +47,12 @@ s.waitForBoot {
 	~closeness2 = Bus.control(s,1);
 	~closeness2.set(0.99);
 	s.sync;
-	~synth1 = Synth(\smush,[\ain,1,\out,0,\amp,0.0,\closeness,~closeness1,\freqs,~freqs1]);
+	~synth1 = Synth(\smush,[\ain,0,\out,1,\amp,0.0,\closeness,~closeness1,\freqs,~freqs1]);
 	s.sync;
-	~synth2 = Synth(\smush,[\ain,2,\out,1,\amp,0.0,\closeness,~closeness2,\freqs,~freqs2]);
+	~synth2 = Synth(\smush,[\ain,1,\out,1,\amp,0.0,\closeness,~closeness2,\freqs,~freqs2]);
 	s.sync;
+	~synth1.set(\amp,0.01);
 	~synth2.set(\amp,0.5);
-	~synth1.set(\amp,0.5);
 	s.sync;
 	~synth1.map(\closeness,~closeness1);
 	~synth2.map(\closeness,~closeness2);
@@ -63,7 +64,7 @@ s.waitForBoot {
 		~nfreqs.do { |i|
 			freqs.set(i,i*~v);
 		};
-	}.play;
+	};
 	s.sync;
 	Routine({
 		loop {
@@ -85,7 +86,7 @@ s.waitForBoot {
 	~myfreqs[3].get(10,{|x| x.postln});
 	//~myfreqs[3].copyData(~freqs);
 	~eps = 0.00001;
-	~closeenv = Env([1, 0, 1,0,1,0,1,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
+	~closeenv = Env([0.95, 0, 0.95,0,0.95,0,0.95,0], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
 	~ampenv = Env([3.0, 0.4,3.0,0.4,3.0,0.4,3.0,0.4], [0.25-~eps, ~eps ,0.25-~eps,~eps,0.25-~eps,~eps],curve:\cub);
 	~freqenv = Env([0.0, 0.0,1.0,1.0,2.0,2.0,3.0,3.0], [0.25-~eps,~eps,0.25-~eps,~eps,0.25-~eps,~eps]);
 
@@ -93,25 +94,26 @@ s.waitForBoot {
 	\end.postln;
 };
 
+_.bufnum
 
 ~mapper = Routine({
 	loop {
-		var f = {|x,synth,closeness,freqs|
-			var i,close,amp,freqs;
+		var f = {|x,synth,closeness,freqs,slider|
+			var i,close,amp,ifreqs;
 			i = x * 10.0;
 			close = ~closeenv.at(i);
 			amp   = ~ampenv.at(i);
 			ifreqs = ~freqenv.at(i);
 			[x,i,close,amp,ifreqs].postln;
-			synth.set(\amp,amp);
+			synth.set(\amp,(slider>20).asInteger * amp);
 			closeness.set(close);
 			~myfreqs[ifreqs].copyData(freqs);
 		};
 		~ffrealloca.get({|x|
-			f(x,~synth1,~closeness1,~freqs1);
+			f.(x,~synth1,~closeness1,~freqs1,~sliderat);
 		});
 		~ffreallocb.get({|x|
-			f(x,~synth2,~closeness2,~freqs2);
+			f.(x,~synth2,~closeness2,~freqs2,~sliderbt);
 		});		
 		0.05.wait;
 	};
@@ -139,8 +141,7 @@ s.waitForBoot {
 ];
 */
 
-
-
+//(~sliderat > 20) * 10
 ~mapper = Routine({
 	loop {
 		~ffrealloca.get({|x|
@@ -150,7 +151,7 @@ s.waitForBoot {
 			amp   = ~ampenv.at(i);
 			freqs = ~freqenv.at(i);
 			[x,i,close,amp,freqs].postln;
-			~synth.set(\amp,amp);
+			~synth.set(\amp,(amp);
 			~closeness.set(close);
 			~myfreqs[freqs].copyData(~freqs);
 		});

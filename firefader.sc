@@ -1,7 +1,7 @@
 // Stolen from  Edgar Berdahl (eberdahl@ccrma.stanford.edu)
 // and Alexandros Kontogeorgakopoulos (akontogeorgakopoulos@cardiffmet.ac.uk)
 // Firefader pd patch and arduino firmware.
-
+SerialPort.closeAll;
 ~firefaderport = SerialPort(
 	"/dev/ttyACM0",    // Your serial port!
 	baudrate: 57600,   
@@ -34,7 +34,8 @@ SynthDef(\firefaderout,{
 
 //~ffloca.scope;
 //~ffrealloca.scope;
-
+~sliderat = 0;
+~sliderbt = 0;
 ~readFader = {
 	|port|
 	var b = 0,vals;
@@ -44,6 +45,8 @@ SynthDef(\firefaderout,{
 	vals = 6.collect({|i| port.read; });
 	~ffloca.set(vals[0]);
 	~fflocb.set(vals[1]);
+	~sliderat = vals[4];
+	~sliderbt = vals[5];
 	vals;
 };
 // So this example fourband serves as a guide for the fire fader
@@ -57,7 +60,7 @@ SynthDef(\firefaderout,{
 					var force1 = ~fourband.at(x*10.0);
 					var force2 = ~fourband.at(y*10.0);
 					~sendforces.(~firefaderport,force1,force2,1.8);
-					~readFader.(~firefaderport);
+					~readFader.(~firefaderport).postln;
 					
 				});
 			});
